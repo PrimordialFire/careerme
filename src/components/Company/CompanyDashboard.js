@@ -109,6 +109,7 @@ const CompanyDashboard = () => {
 
   const handleJobSubmit = async () => {
     try {
+      console.log('Submitting job with data:', jobForm);
       const jobData = {
         ...jobForm,
         companyId: currentUser.uid,
@@ -117,6 +118,7 @@ const CompanyDashboard = () => {
         status: 'active'
       };
       
+      console.log('Final job data:', jobData);
       await addDoc(collection(db, 'jobs'), jobData);
       
       setSnackbarMessage('Job posted successfully!');
@@ -132,6 +134,7 @@ const CompanyDashboard = () => {
         experience: 'Entry Level'
       });
       loadJobs(); // Reload jobs
+      console.log('Job posted successfully!');
     } catch (error) {
       setSnackbarMessage('Error posting job. Please try again.');
       setSnackbarOpen(true);
@@ -141,6 +144,7 @@ const CompanyDashboard = () => {
 
   const handleProfileUpdate = async () => {
     try {
+      console.log('Updating profile with data:', userData);
       await updateDoc(doc(db, 'users', currentUser.uid), {
         companyName: userData.companyName,
         industry: userData.industry,
@@ -151,6 +155,7 @@ const CompanyDashboard = () => {
       setSnackbarMessage('Profile updated successfully!');
       setSnackbarOpen(true);
       setProfileDialogOpen(false);
+      console.log('Profile updated successfully!');
     } catch (error) {
       setSnackbarMessage('Error updating profile. Please try again.');
       setSnackbarOpen(true);
@@ -256,7 +261,10 @@ const CompanyDashboard = () => {
               <Button 
                 variant="contained" 
                 startIcon={<Add />}
-                onClick={() => setJobDialogOpen(true)}
+                onClick={() => {
+                  console.log('Post New Job clicked');
+                  setJobDialogOpen(true);
+                }}
               >
                 Post New Job
               </Button>
@@ -299,7 +307,10 @@ const CompanyDashboard = () => {
               variant="contained" 
               sx={{ mt: 2 }} 
               startIcon={<Settings />}
-              onClick={() => setProfileDialogOpen(true)}
+              onClick={() => {
+                console.log('Edit Profile clicked');
+                setProfileDialogOpen(true);
+              }}
             >
               Edit Profile
             </Button>
