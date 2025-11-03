@@ -4,7 +4,6 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut,
-  sendEmailVerification,
   updateProfile
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -55,7 +54,7 @@ export const AuthProvider = ({ children }) => {
         role: role,
         createdAt: new Date(),
         emailVerified: false,
-        status: role === USER_ROLES.ADMIN ? 'active' : 'pending', // Admin is active by default
+        status: 'active', // All users active by default for testing
         ...userData
       });
 
@@ -79,13 +78,8 @@ export const AuthProvider = ({ children }) => {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
-        // Check if user account is approved (except admin)
-        if (userData.role !== USER_ROLES.ADMIN && userData.status !== 'active') {
-          toast.error('Your account is pending approval.');
-          await signOut(auth);
-          return null;
-        }
-
+        // Approval check disabled for testing - users can login immediately
+        
         setUserRole(userData.role);
         toast.success('Login successful!');
         return { user, role: userData.role };
