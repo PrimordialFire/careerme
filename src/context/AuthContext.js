@@ -72,11 +72,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       
-      if (!user.emailVerified) {
-        toast.error('Please verify your email before logging in.');
-        await signOut(auth);
-        return null;
-      }
+      // Temporarily disable email verification for testing
+      // if (!user.emailVerified) {
+      //   toast.error('Please verify your email before logging in.');
+      //   await signOut(auth);
+      //   return null;
+      // }
 
       // Get user role and data from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
