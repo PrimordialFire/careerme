@@ -119,9 +119,9 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && user.emailVerified) {
+      if (user) {
         const userData = await getUserData(user.uid);
-        if (userData && userData.status === 'active') {
+        if (userData) {
           setCurrentUser(user);
           setUserRole(userData.role);
         } else {
