@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Container, 
@@ -13,7 +13,18 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon,
@@ -26,6 +37,8 @@ import {
   Settings
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -47,6 +60,24 @@ const InstituteDashboard = () => {
   const { currentUser, logout, getUserData } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [userData, setUserData] = useState(null);
+  const [facultyDialogOpen, setFacultyDialogOpen] = useState(false);
+  const [courseDialogOpen, setCourseDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [facultyForm, setFacultyForm] = useState({
+    name: '',
+    description: '',
+    head: '',
+    departments: ''
+  });
+  const [courseForm, setCourseForm] = useState({
+    name: '',
+    code: '',
+    description: '',
+    credits: '',
+    faculty: '',
+    level: 'Undergraduate'
+  });
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -60,6 +91,57 @@ const InstituteDashboard = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  const handleFacultySubmit = async () => {
+    try {
+      const facultyData = {
+        ...facultyForm,
+        instituteId: currentUser.uid,
+        instituteName: userData?.institutionName || userData?.name,
+        createdAt: new Date()
+      };
+      
+      await addDoc(collection(db, 'faculties'), facultyData);
+      
+      setSnackbarMessage('Faculty added successfully!');
+      setSnackbarOpen(true);
+      setFacultyDialogOpen(false);
+      setFacultyForm({ name: '', description: '', head: '', departments: '' });
+    } catch (error) {
+      setSnackbarMessage('Error adding faculty. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error adding faculty:', error);
+    }
+  };
+
+  const handleCourseSubmit = async () => {
+    try {
+      const courseData = {
+        ...courseForm,
+        instituteId: currentUser.uid,
+        instituteName: userData?.institutionName || userData?.name,
+        createdAt: new Date()
+      };
+      
+      await addDoc(collection(db, 'courses'), courseData);
+      
+      setSnackbarMessage('Course added successfully!');
+      setSnackbarOpen(true);
+      setCourseDialogOpen(false);
+      setCourseForm({
+        name: '',
+        code: '',
+        description: '',
+        credits: '',
+        faculty: '',
+        level: 'Undergraduate'
+      });
+    } catch (error) {
+      setSnackbarMessage('Error adding course. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error adding course:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -158,7 +240,11 @@ const InstituteDashboard = () => {
               <Typography variant="h6">
                 Faculties Management
               </Typography>
-              <Button variant="contained" startIcon={<Add />}>
+              <Button 
+                variant="contained" 
+                startIcon={<Add />}
+                onClick={() => setFacultyDialogOpen(true)}
+              >
                 Add Faculty
               </Button>
             </Box>
@@ -172,7 +258,11 @@ const InstituteDashboard = () => {
               <Typography variant="h6">
                 Course Management
               </Typography>
-              <Button variant="contained" startIcon={<Add />}>
+              <Button 
+                variant="contained" 
+                startIcon={<Add />}
+                onClick={() => setCourseDialogOpen(true)}
+              >
                 Add Course
               </Button>
             </Box>
@@ -212,6 +302,137 @@ const InstituteDashboard = () => {
           </TabPanel>
         </Card>
       </Container>
+
+      {/* Faculty Dialog */}
+      <Dialog open={facultyDialogOpen} onClose={() => setFacultyDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Faculty</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Faculty Name"
+                value={facultyForm.name}
+                onChange={(e) => setFacultyForm({ ...facultyForm, name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Faculty Head"
+                value={facultyForm.head}
+                onChange={(e) => setFacultyForm({ ...facultyForm, head: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Description"
+                value={facultyForm.description}
+                onChange={(e) => setFacultyForm({ ...facultyForm, description: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Departments"
+                placeholder="List departments separated by commas"
+                value={facultyForm.departments}
+                onChange={(e) => setFacultyForm({ ...facultyForm, departments: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFacultyDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleFacultySubmit} variant="contained">Add Faculty</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Course Dialog */}
+      <Dialog open={courseDialogOpen} onClose={() => setCourseDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Add New Course</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Course Name"
+                value={courseForm.name}
+                onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Course Code"
+                placeholder="e.g., CS101"
+                value={courseForm.code}
+                onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Credits"
+                type="number"
+                value={courseForm.credits}
+                onChange={(e) => setCourseForm({ ...courseForm, credits: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Level</InputLabel>
+                <Select
+                  value={courseForm.level}
+                  label="Level"
+                  onChange={(e) => setCourseForm({ ...courseForm, level: e.target.value })}
+                >
+                  <MenuItem value="Certificate">Certificate</MenuItem>
+                  <MenuItem value="Diploma">Diploma</MenuItem>
+                  <MenuItem value="Undergraduate">Undergraduate</MenuItem>
+                  <MenuItem value="Postgraduate">Postgraduate</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Faculty"
+                value={courseForm.faculty}
+                onChange={(e) => setCourseForm({ ...courseForm, faculty: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Course Description"
+                value={courseForm.description}
+                onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCourseDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCourseSubmit} variant="contained">Add Course</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

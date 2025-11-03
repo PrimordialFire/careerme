@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Container, 
@@ -13,7 +13,19 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon,
@@ -26,6 +38,8 @@ import {
   Settings
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -47,6 +61,20 @@ const CompanyDashboard = () => {
   const { currentUser, logout, getUserData } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [userData, setUserData] = useState(null);
+  const [jobDialogOpen, setJobDialogOpen] = useState(false);
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [jobForm, setJobForm] = useState({
+    title: '',
+    description: '',
+    requirements: '',
+    salary: '',
+    location: '',
+    type: 'Full-time',
+    experience: 'Entry Level'
+  });
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -60,6 +88,74 @@ const CompanyDashboard = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  // Load jobs when component mounts
+  useEffect(() => {
+    if (currentUser) {
+      loadJobs();
+    }
+  }, [currentUser]);
+
+  const loadJobs = async () => {
+    try {
+      const jobsSnapshot = await getDocs(collection(db, 'jobs'));
+      const jobsList = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setJobs(jobsList.filter(job => job.companyId === currentUser?.uid));
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    }
+  };
+
+  const handleJobSubmit = async () => {
+    try {
+      const jobData = {
+        ...jobForm,
+        companyId: currentUser.uid,
+        companyName: userData?.companyName || userData?.name,
+        createdAt: new Date(),
+        status: 'active'
+      };
+      
+      await addDoc(collection(db, 'jobs'), jobData);
+      
+      setSnackbarMessage('Job posted successfully!');
+      setSnackbarOpen(true);
+      setJobDialogOpen(false);
+      setJobForm({
+        title: '',
+        description: '',
+        requirements: '',
+        salary: '',
+        location: '',
+        type: 'Full-time',
+        experience: 'Entry Level'
+      });
+      loadJobs(); // Reload jobs
+    } catch (error) {
+      setSnackbarMessage('Error posting job. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error posting job:', error);
+    }
+  };
+
+  const handleProfileUpdate = async () => {
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        companyName: userData.companyName,
+        industry: userData.industry,
+        website: userData.website,
+        description: userData.description
+      });
+      
+      setSnackbarMessage('Profile updated successfully!');
+      setSnackbarOpen(true);
+      setProfileDialogOpen(false);
+    } catch (error) {
+      setSnackbarMessage('Error updating profile. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error updating profile:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -157,7 +253,11 @@ const CompanyDashboard = () => {
               <Typography variant="h6">
                 Job Postings Management
               </Typography>
-              <Button variant="contained" startIcon={<Add />}>
+              <Button 
+                variant="contained" 
+                startIcon={<Add />}
+                onClick={() => setJobDialogOpen(true)}
+              >
                 Post New Job
               </Button>
             </Box>
@@ -195,12 +295,164 @@ const CompanyDashboard = () => {
             <Typography variant="body1" color="text.secondary">
               Update company profile and recruitment preferences.
             </Typography>
-            <Button variant="contained" sx={{ mt: 2 }} startIcon={<Settings />}>
+            <Button 
+              variant="contained" 
+              sx={{ mt: 2 }} 
+              startIcon={<Settings />}
+              onClick={() => setProfileDialogOpen(true)}
+            >
               Edit Profile
             </Button>
           </TabPanel>
         </Card>
       </Container>
+
+      {/* Job Posting Dialog */}
+      <Dialog open={jobDialogOpen} onClose={() => setJobDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Post New Job</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Job Title"
+                value={jobForm.title}
+                onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Job Type</InputLabel>
+                <Select
+                  value={jobForm.type}
+                  label="Job Type"
+                  onChange={(e) => setJobForm({ ...jobForm, type: e.target.value })}
+                >
+                  <MenuItem value="Full-time">Full-time</MenuItem>
+                  <MenuItem value="Part-time">Part-time</MenuItem>
+                  <MenuItem value="Contract">Contract</MenuItem>
+                  <MenuItem value="Internship">Internship</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Experience Level</InputLabel>
+                <Select
+                  value={jobForm.experience}
+                  label="Experience Level"
+                  onChange={(e) => setJobForm({ ...jobForm, experience: e.target.value })}
+                >
+                  <MenuItem value="Entry Level">Entry Level</MenuItem>
+                  <MenuItem value="Mid Level">Mid Level</MenuItem>
+                  <MenuItem value="Senior Level">Senior Level</MenuItem>
+                  <MenuItem value="Executive">Executive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Location"
+                value={jobForm.location}
+                onChange={(e) => setJobForm({ ...jobForm, location: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Salary Range"
+                placeholder="e.g., M15,000 - M25,000"
+                value={jobForm.salary}
+                onChange={(e) => setJobForm({ ...jobForm, salary: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label="Job Description"
+                value={jobForm.description}
+                onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Requirements"
+                placeholder="List the requirements and qualifications needed"
+                value={jobForm.requirements}
+                onChange={(e) => setJobForm({ ...jobForm, requirements: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setJobDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleJobSubmit} variant="contained">Post Job</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Profile Edit Dialog */}
+      <Dialog open={profileDialogOpen} onClose={() => setProfileDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Company Profile</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Company Name"
+                value={userData?.companyName || ''}
+                onChange={(e) => setUserData({ ...userData, companyName: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Industry"
+                value={userData?.industry || ''}
+                onChange={(e) => setUserData({ ...userData, industry: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Website"
+                value={userData?.website || ''}
+                onChange={(e) => setUserData({ ...userData, website: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Company Description"
+                value={userData?.description || ''}
+                onChange={(e) => setUserData({ ...userData, description: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setProfileDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleProfileUpdate} variant="contained">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

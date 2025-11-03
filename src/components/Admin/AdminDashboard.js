@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Container, 
@@ -13,7 +13,22 @@ import {
   Tabs,
   Tab,
   IconButton,
-  Badge
+  Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon,
@@ -25,9 +40,13 @@ import {
   ExitToApp,
   Add,
   Settings,
-  Report
+  Report,
+  Check,
+  Close
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { collection, getDocs, updateDoc, doc, addDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -49,6 +68,10 @@ const AdminDashboard = () => {
   const { currentUser, logout, getUserData } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [userData, setUserData] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -62,6 +85,77 @@ const AdminDashboard = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+  };
+
+  // Load users when component mounts
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setUsers(usersList);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  const approveUser = async (userId) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        status: 'active'
+      });
+      
+      setSnackbarMessage('User approved successfully!');
+      setSnackbarOpen(true);
+      loadUsers(); // Reload users
+    } catch (error) {
+      setSnackbarMessage('Error approving user. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error approving user:', error);
+    }
+  };
+
+  const rejectUser = async (userId) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        status: 'rejected'
+      });
+      
+      setSnackbarMessage('User rejected successfully!');
+      setSnackbarOpen(true);
+      loadUsers(); // Reload users
+    } catch (error) {
+      setSnackbarMessage('Error rejecting user. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error rejecting user:', error);
+    }
+  };
+
+  const generateReport = async () => {
+    try {
+      const reportData = {
+        totalUsers: users.length,
+        institutions: users.filter(u => u.role === 'institute').length,
+        companies: users.filter(u => u.role === 'company').length,
+        students: users.filter(u => u.role === 'student').length,
+        pendingApprovals: users.filter(u => u.status === 'pending').length,
+        generatedAt: new Date(),
+        generatedBy: currentUser.uid
+      };
+      
+      await addDoc(collection(db, 'reports'), reportData);
+      
+      setSnackbarMessage('Report generated successfully!');
+      setSnackbarOpen(true);
+      setReportDialogOpen(false);
+    } catch (error) {
+      setSnackbarMessage('Error generating report. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error generating report:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -193,15 +287,68 @@ const AdminDashboard = () => {
           <TabPanel value={activeTab} index={1}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6">
-                Institution Management
+                User Management
               </Typography>
-              <Button variant="contained" startIcon={<Add />}>
-                Add Institution
-              </Button>
             </Box>
-            <Typography variant="body1" color="text.secondary">
-              Manage higher learning institutions, their faculties, and courses.
-            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {users.slice(0, 10).map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={user.role} 
+                          color={
+                            user.role === 'admin' ? 'error' :
+                            user.role === 'institute' ? 'primary' :
+                            user.role === 'company' ? 'success' : 'default'
+                          }
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={user.status || 'pending'} 
+                          color={user.status === 'active' ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {user.status !== 'active' && (
+                          <>
+                            <IconButton 
+                              size="small" 
+                              color="success"
+                              onClick={() => approveUser(user.id)}
+                            >
+                              <Check />
+                            </IconButton>
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => rejectUser(user.id)}
+                            >
+                              <Close />
+                            </IconButton>
+                          </>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
@@ -227,7 +374,11 @@ const AdminDashboard = () => {
               <Typography variant="h6">
                 System Reports
               </Typography>
-              <Button variant="contained" startIcon={<Report />}>
+              <Button 
+                variant="contained" 
+                startIcon={<Report />}
+                onClick={() => setReportDialogOpen(true)}
+              >
                 Generate Report
               </Button>
             </Box>
@@ -249,6 +400,39 @@ const AdminDashboard = () => {
           </TabPanel>
         </Card>
       </Container>
+
+      {/* Report Generation Dialog */}
+      <Dialog open={reportDialogOpen} onClose={() => setReportDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Generate System Report</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            This will generate a comprehensive report including:
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>• Total users by role</Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>• Pending approvals</Typography>
+          <Typography variant="body2" sx={{ mb: 1 }}>• System activity statistics</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>• Platform usage metrics</Typography>
+          
+          <Typography variant="body2" color="text.secondary">
+            Report will be saved to the database with timestamp.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReportDialogOpen(false)}>Cancel</Button>
+          <Button onClick={generateReport} variant="contained">Generate Report</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
