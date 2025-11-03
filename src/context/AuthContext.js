@@ -44,8 +44,8 @@ export const AuthProvider = ({ children }) => {
         displayName: userData.name
       });
 
-      // Send email verification
-      await sendEmailVerification(user);
+      // Email verification disabled for testing
+      // await sendEmailVerification(user);
 
       // Save user data to Firestore
       await setDoc(doc(db, 'users', user.uid), {
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
         ...userData
       });
 
-      toast.success('Registration successful! Please verify your email.');
+      toast.success('Registration successful! You can now login.');
       return { user, role };
     } catch (error) {
       toast.error(error.message);
@@ -72,12 +72,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       
-      // Temporarily disable email verification for testing
-      // if (!user.emailVerified) {
-      //   toast.error('Please verify your email before logging in.');
-      //   await signOut(auth);
-      //   return null;
-      // }
+      // Email verification disabled for testing - users can login immediately
 
       // Get user role and data from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
