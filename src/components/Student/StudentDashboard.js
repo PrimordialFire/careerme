@@ -252,9 +252,11 @@ const StudentDashboard = () => {
       <AppBar position="static">
         <Toolbar>
           <DashboardIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Student Dashboard
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+            <Typography variant="h6" component="div">
+              Student Dashboard
+            </Typography>
+          </Box>
           <IconButton color="inherit" sx={{ mr: 1 }}>
             <Badge badgeContent={3} color="error">
               <Notifications />

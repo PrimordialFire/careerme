@@ -76,9 +76,11 @@ const Landing = () => {
       {/* Navigation Bar */}
       <AppBar position="static" elevation={0}>
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Career Guidance Platform
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+            <Typography variant="h6" component="div">
+              Career Guidance Platform
+            </Typography>
+          </Box>
           <Button color="inherit" onClick={() => navigate('/login')}>
             Login
           </Button>
