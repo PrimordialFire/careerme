@@ -73,6 +73,7 @@ const InstituteDashboard = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [faculties, setFaculties] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [applications, setApplications] = useState([]);
   const [facultyForm, setFacultyForm] = useState({
     name: '',
@@ -109,6 +110,16 @@ const InstituteDashboard = () => {
     }
   };
 
+  const loadCourses = async () => {
+    try {
+      const coursesSnapshot = await getDocs(collection(db, 'courses'));
+      const coursesList = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setCourses(coursesList.filter(course => course.instituteId === currentUser?.uid));
+    } catch (error) {
+      console.error('Error loading courses:', error);
+    }
+  };
+
   const loadApplications = async () => {
     try {
       const applicationsSnapshot = await getDocs(collection(db, 'applications'));
@@ -122,6 +133,7 @@ const InstituteDashboard = () => {
   React.useEffect(() => {
     if (currentUser) {
       loadFaculties();
+      loadCourses();
       loadApplications();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,6 +188,7 @@ const InstituteDashboard = () => {
         faculty: '',
         level: 'Undergraduate'
       });
+      loadCourses(); // Reload courses
     } catch (error) {
       setSnackbarMessage('Error adding course. Please try again.');
       setSnackbarOpen(true);
@@ -203,9 +216,11 @@ const InstituteDashboard = () => {
       <AppBar position="static">
         <Toolbar>
           <DashboardIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Institution Dashboard
-          </Typography>
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center' }}>
+            <Typography variant="h6" component="div">
+              Institution Dashboard
+            </Typography>
+          </Box>
           <IconButton color="inherit" sx={{ mr: 1 }}>
             <Badge badgeContent={5} color="error">
               <Notifications />
@@ -331,9 +346,45 @@ const InstituteDashboard = () => {
                 Add Course
               </Button>
             </Box>
-            <Typography variant="body1" color="text.secondary">
-              Add and manage courses offered by your institution.
-            </Typography>
+            
+            {courses.length === 0 ? (
+              <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
+                No courses added yet. Click "Add Course" to create your first course.
+              </Typography>
+            ) : (
+              <TableContainer component={Paper} sx={{ mt: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Course Code</strong></TableCell>
+                      <TableCell><strong>Course Name</strong></TableCell>
+                      <TableCell><strong>Description</strong></TableCell>
+                      <TableCell><strong>Credits</strong></TableCell>
+                      <TableCell><strong>Faculty</strong></TableCell>
+                      <TableCell><strong>Level</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {courses.map((course) => (
+                      <TableRow key={course.id}>
+                        <TableCell>{course.code}</TableCell>
+                        <TableCell>{course.name}</TableCell>
+                        <TableCell>{course.description}</TableCell>
+                        <TableCell>{course.credits}</TableCell>
+                        <TableCell>{course.faculty}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={course.level} 
+                            color="primary"
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
