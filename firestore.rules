@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Faculties collection - institutions can add and read their own faculties
+    match /faculties/{facultyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.instituteId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.instituteId == request.auth.uid;
+    }
+    
+    // Courses collection - institutions can manage their courses
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.instituteId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.instituteId == request.auth.uid;
+    }
+    
+    // Applications collection - students can create, institutions can read
+    match /applications/{applicationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+        (resource.data.studentId == request.auth.uid || 
+         resource.data.institutionId == request.auth.uid);
+    }
+    
+    // Jobs collection - companies can manage their jobs
+    match /jobs/{jobId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.companyId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.companyId == request.auth.uid;
+    }
+    
+    // Documents collection
+    match /documents/{documentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.studentId == request.auth.uid;
+    }
+    
+    // Reports collection
+    match /reports/{reportId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
