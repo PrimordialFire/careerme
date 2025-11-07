@@ -269,9 +269,53 @@ const CompanyDashboard = () => {
                 Post New Job
               </Button>
             </Box>
-            <Typography variant="body1" color="text.secondary">
-              Create and manage your job postings with specific qualifications.
-            </Typography>
+            
+            {/* Display posted jobs */}
+            <Grid container spacing={3} mt={2}>
+              {jobs.length === 0 ? (
+                <Grid item xs={12}>
+                  <Typography variant="body1" color="text.secondary" textAlign="center">
+                    No jobs posted yet. Click "Post New Job" to create your first job posting.
+                  </Typography>
+                </Grid>
+              ) : (
+                jobs.map((job) => (
+                  <Grid item xs={12} md={6} key={job.id}>
+                    <Card>
+                      <CardContent>
+                        <Typography variant="h6" gutterBottom>
+                          {job.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                          {job.description}
+                        </Typography>
+                        <Box mt={2}>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Location:</strong> {job.location}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Type:</strong> {job.type}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Experience:</strong> {job.experience}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>Salary:</strong> {job.salary}
+                          </Typography>
+                        </Box>
+                        <Box mt={2}>
+                          <Chip 
+                            label={job.status === 'active' ? 'Active' : 'Inactive'} 
+                            color={job.status === 'active' ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))
+              )}
+            </Grid>
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
