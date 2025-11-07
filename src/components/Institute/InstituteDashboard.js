@@ -24,7 +24,15 @@ import {
   Select,
   MenuItem,
   Snackbar,
-  Alert
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon,
@@ -64,6 +72,8 @@ const InstituteDashboard = () => {
   const [courseDialogOpen, setCourseDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [faculties, setFaculties] = useState([]);
+  const [applications, setApplications] = useState([]);
   const [facultyForm, setFacultyForm] = useState({
     name: '',
     description: '',
@@ -89,6 +99,34 @@ const InstituteDashboard = () => {
     fetchUserData();
   }, [currentUser, getUserData]);
 
+  const loadFaculties = async () => {
+    try {
+      const facultiesSnapshot = await getDocs(collection(db, 'faculties'));
+      const facultiesList = facultiesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setFaculties(facultiesList.filter(faculty => faculty.instituteId === currentUser?.uid));
+    } catch (error) {
+      console.error('Error loading faculties:', error);
+    }
+  };
+
+  const loadApplications = async () => {
+    try {
+      const applicationsSnapshot = await getDocs(collection(db, 'applications'));
+      const applicationsList = applicationsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setApplications(applicationsList.filter(app => app.institutionName === userData?.institutionName));
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    if (currentUser) {
+      loadFaculties();
+      loadApplications();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, userData]);
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
@@ -108,6 +146,7 @@ const InstituteDashboard = () => {
       setSnackbarOpen(true);
       setFacultyDialogOpen(false);
       setFacultyForm({ name: '', description: '', head: '', departments: '' });
+      loadFaculties(); // Reload faculties
     } catch (error) {
       setSnackbarMessage('Error adding faculty. Please try again.');
       setSnackbarOpen(true);
@@ -248,9 +287,35 @@ const InstituteDashboard = () => {
                 Add Faculty
               </Button>
             </Box>
-            <Typography variant="body1" color="text.secondary">
-              Manage your institution's faculties and departments.
-            </Typography>
+            
+            {faculties.length === 0 ? (
+              <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
+                No faculties added yet. Click "Add Faculty" to create your first faculty.
+              </Typography>
+            ) : (
+              <TableContainer component={Paper} sx={{ mt: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Faculty Name</strong></TableCell>
+                      <TableCell><strong>Description</strong></TableCell>
+                      <TableCell><strong>Head</strong></TableCell>
+                      <TableCell><strong>Departments</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {faculties.map((faculty) => (
+                      <TableRow key={faculty.id}>
+                        <TableCell>{faculty.name}</TableCell>
+                        <TableCell>{faculty.description}</TableCell>
+                        <TableCell>{faculty.head}</TableCell>
+                        <TableCell>{faculty.departments}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
@@ -275,9 +340,49 @@ const InstituteDashboard = () => {
             <Typography variant="h6" gutterBottom>
               Student Applications
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Review and process student applications for admission.
-            </Typography>
+            
+            {applications.length === 0 ? (
+              <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mt: 4 }}>
+                No student applications received yet.
+              </Typography>
+            ) : (
+              <TableContainer component={Paper} sx={{ mt: 3 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Student Name</strong></TableCell>
+                      <TableCell><strong>Course</strong></TableCell>
+                      <TableCell><strong>Level</strong></TableCell>
+                      <TableCell><strong>Previous Education</strong></TableCell>
+                      <TableCell><strong>Date</strong></TableCell>
+                      <TableCell><strong>Status</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {applications.map((application) => (
+                      <TableRow key={application.id}>
+                        <TableCell>{application.studentName}</TableCell>
+                        <TableCell>{application.course}</TableCell>
+                        <TableCell>{application.level}</TableCell>
+                        <TableCell>{application.previousEducation}</TableCell>
+                        <TableCell>
+                          {application.appliedAt?.toDate ? 
+                            new Date(application.appliedAt.toDate()).toLocaleDateString() : 
+                            'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={application.status || 'Pending'} 
+                            color={application.status === 'approved' ? 'success' : 'warning'}
+                            size="small"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={4}>
