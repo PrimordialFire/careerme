@@ -1,6 +1,12 @@
 # Demo Accounts for Career Guidance Platform
 
-## 📚 Educational Institution Account
+## � Admin Account
+**Email:** admin@demo.com  
+**Password:** demo123  
+**Role:** Admin  
+**Name:** System Administrator  
+
+## �📚 Educational Institution Account
 **Email:** institute@demo.com  
 **Password:** demo123  
 **Role:** Educational Institution  
@@ -18,15 +24,9 @@
 **Role:** Student  
 **Name:** John Mokhothu  
 
-## 🔐 Admin Account
-**Email:** admin@demo.com  
-**Password:** demo123  
-**Role:** Admin  
-**Name:** System Administrator  
-
 ## How to Use:
-1. Go to: https://career-guide-73a47.web.app/register
-2. Register with the above credentials for any role you want to test
+1. Go to: https://career-guide-73a47.web.app/register OR http://localhost:3000/register
+2. You can now register as any role including Administrator
 3. Login immediately (no email verification required)
 4. Access the corresponding dashboard
 

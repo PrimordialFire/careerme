@@ -27,7 +27,6 @@ import {
   Alert,
   List,
   ListItem,
-  ListItemText,
   Chip,
   Table,
   TableBody,
@@ -50,6 +49,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { matchJobsToStudent } from '../../utils/validation';
+import { waitingListService } from '../../services/firebaseService';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -90,6 +91,10 @@ const StudentDashboard = () => {
     name: '',
     description: ''
   });
+  const [myApplications, setMyApplications] = useState([]);
+  const [admittedApplications, setAdmittedApplications] = useState([]);
+  const [institutionSelectionDialogOpen, setInstitutionSelectionDialogOpen] = useState(false);
+  const [selectedInstitution, setSelectedInstitution] = useState('');
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -108,7 +113,9 @@ const StudentDashboard = () => {
   // Load institutions and jobs
   useEffect(() => {
     loadInstitutionsAndJobs();
-  }, []);
+    loadMyApplications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData]); // Reload when userData changes to apply job filtering
 
   const loadInstitutionsAndJobs = async () => {
     try {
@@ -121,17 +128,167 @@ const StudentDashboard = () => {
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(user => user.role === 'institute');
       
-      const jobsList = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const allJobs = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Filter jobs based on student qualifications
+      if (userData) {
+        // Create student profile for job matching
+        const studentProfile = {
+          gpa: userData.gpa || 0,
+          fieldOfStudy: userData.fieldOfStudy || userData.education || '',
+          skills: userData.skills || [],
+          experience: userData.experience || 0
+        };
+        
+        // Use matching algorithm to filter qualified jobs
+        const qualifiedJobs = matchJobsToStudent(studentProfile, allJobs);
+        setJobs(qualifiedJobs);
+      } else {
+        // If no user data yet, show all jobs (will be filtered on next load)
+        setJobs(allJobs);
+      }
       
       setInstitutions(instList);
-      setJobs(jobsList);
     } catch (error) {
       console.error('Error loading data:', error);
+    }
+  };
+  
+  const loadMyApplications = async () => {
+    try {
+      const applicationsSnap = await getDocs(collection(db, 'applications'));
+      const myApps = applicationsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(app => app.studentId === currentUser?.uid);
+      
+      setMyApplications(myApps);
+      
+      // Filter admitted applications
+      const admitted = myApps.filter(app => app.status === 'admitted');
+      setAdmittedApplications(admitted);
+      
+      // If student has multiple admissions, they need to choose one
+      if (admitted.length > 1 && !admitted.some(app => app.confirmed)) {
+        setInstitutionSelectionDialogOpen(true);
+      }
+    } catch (error) {
+      console.error('Error loading applications:', error);
+    }
+  };
+  
+  const handleInstitutionSelection = async () => {
+    try {
+      if (!selectedInstitution) {
+        setSnackbarMessage('Please select an institution to confirm!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // Mark selected application as confirmed
+      const selectedApp = admittedApplications.find(app => app.id === selectedInstitution);
+      await updateDoc(doc(db, 'applications', selectedInstitution), {
+        confirmed: true,
+        confirmedAt: new Date()
+      });
+      
+      // Reject other admissions and promote from waiting list
+      const otherAdmissions = admittedApplications.filter(app => app.id !== selectedInstitution);
+      for (const app of otherAdmissions) {
+        // Update this application to declined
+        await updateDoc(doc(db, 'applications', app.id), {
+          status: 'declined',
+          declinedAt: new Date()
+        });
+        
+        // Promote next student from waiting list for this institution/course
+        try {
+          const promoted = await waitingListService.promoteFromWaitingList(
+            app.institutionId || currentUser.uid,
+            app.courseId,
+            app.course
+          );
+          
+          if (promoted) {
+            console.log(`Promoted student from waiting list for ${app.course} at ${app.institutionName}`);
+          }
+        } catch (error) {
+          console.error('Error promoting from waiting list:', error);
+          // Continue with the process even if promotion fails
+        }
+      }
+      
+      setSnackbarMessage(`Confirmed admission to ${selectedApp.institutionName}! Other admissions have been declined and waiting list students have been promoted.`);
+      setSnackbarOpen(true);
+      setInstitutionSelectionDialogOpen(false);
+      loadMyApplications();
+    } catch (error) {
+      setSnackbarMessage('Error confirming institution. Please try again.');
+      setSnackbarOpen(true);
+      console.error('Error confirming institution:', error);
     }
   };
 
   const handleApplicationSubmit = async () => {
     try {
+      // Validate required fields
+      if (!applicationForm.institutionName || !applicationForm.course || !applicationForm.previousEducation) {
+        setSnackbarMessage('Please fill in all required fields!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // Check how many applications this student has for the selected institution
+      const existingApplicationsSnap = await getDocs(collection(db, 'applications'));
+      const existingApplications = existingApplicationsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(app => 
+          app.studentId === currentUser.uid && 
+          app.institutionName === applicationForm.institutionName &&
+          app.status !== 'declined' && 
+          app.status !== 'rejected'
+        );
+      
+      // Enforce 2 applications per institution limit
+      if (existingApplications.length >= 2) {
+        setSnackbarMessage('Error: You can only apply to 2 courses per institution! You already have ' + existingApplications.length + ' active application(s) at this institution.');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // Check if student already applied for this exact course at this institution
+      const duplicateApplication = existingApplications.find(app => 
+        app.course === applicationForm.course && 
+        app.level === applicationForm.level
+      );
+      
+      if (duplicateApplication) {
+        setSnackbarMessage('Error: You have already applied for this course!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // Check qualification requirements based on level
+      const requiredEducation = {
+        'Undergraduate': ['High School', 'Secondary', 'O-Level', 'A-Level'],
+        'Masters': ['Bachelor', 'Undergraduate', 'Degree'],
+        'PhD': ['Masters', 'Graduate']
+      };
+      
+      const level = applicationForm.level;
+      const previousEd = applicationForm.previousEducation.toLowerCase();
+      
+      if (requiredEducation[level]) {
+        const qualifies = requiredEducation[level].some(req => 
+          previousEd.includes(req.toLowerCase())
+        );
+        
+        if (!qualifies) {
+          setSnackbarMessage(`Error: You do not qualify for ${level} programs. Required: ${requiredEducation[level].join(' or ')} qualification!`);
+          setSnackbarOpen(true);
+          return;
+        }
+      }
+      
       const applicationData = {
         ...applicationForm,
         studentId: currentUser.uid,
@@ -152,6 +309,9 @@ const StudentDashboard = () => {
         level: 'Undergraduate',
         previousEducation: ''
       });
+      
+      // Reload applications to update UI
+      loadMyApplications();
     } catch (error) {
       setSnackbarMessage('Error submitting application. Please try again.');
       setSnackbarOpen(true);
@@ -239,11 +399,35 @@ const StudentDashboard = () => {
     }
   };
 
+  // Calculate real-time statistics
+  const calculateProfileCompletion = () => {
+    if (!userData) return 0;
+    const fields = ['name', 'email', 'phone', 'address', 'dateOfBirth', 'gender', 'nationality', 'highSchool', 'graduationYear'];
+    const completed = fields.filter(field => userData[field]).length;
+    return Math.round((completed / fields.length) * 100);
+  };
+
   const stats = [
-    { title: 'Applications Submitted', value: '2', icon: <Assignment color="primary" /> },
-    { title: 'Admissions Received', value: '1', icon: <School color="success" /> },
-    { title: 'Job Applications', value: '0', icon: <Work color="info" /> },
-    { title: 'Profile Completion', value: '85%', icon: <Person color="warning" /> }
+    { 
+      title: 'Applications Submitted', 
+      value: myApplications.length || 0, 
+      icon: <Assignment color="primary" /> 
+    },
+    { 
+      title: 'Admissions Received', 
+      value: myApplications.filter(app => app.status === 'admitted').length || 0, 
+      icon: <School color="success" /> 
+    },
+    { 
+      title: 'Qualified Jobs', 
+      value: jobs.length || 0, 
+      icon: <Work color="info" /> 
+    },
+    { 
+      title: 'Profile Completion', 
+      value: `${calculateProfileCompletion()}%`, 
+      icon: <Person color="warning" /> 
+    }
   ];
 
   return (
@@ -258,7 +442,7 @@ const StudentDashboard = () => {
             </Typography>
           </Box>
           <IconButton color="inherit" sx={{ mr: 1 }}>
-            <Badge badgeContent={3} color="error">
+            <Badge badgeContent={admittedApplications.length} color="error">
               <Notifications />
             </Badge>
           </IconButton>
@@ -276,10 +460,10 @@ const StudentDashboard = () => {
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         {/* Welcome Section */}
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ textAlign: 'center' }}>
           Welcome back, {userData?.name || currentUser?.displayName || 'Student'}!
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
           Here's your academic journey overview
         </Typography>
 
@@ -287,12 +471,12 @@ const StudentDashboard = () => {
         <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center' }}>
           {stats.map((stat, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card>
-                <CardContent sx={{ textAlign: 'center' }}>
-                  <Box sx={{ mb: 2 }}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ textAlign: 'center', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
                     {stat.icon}
                   </Box>
-                  <Typography variant="h4" component="div" gutterBottom>
+                  <Typography variant="h3" component="div" gutterBottom fontWeight="bold">
                     {stat.value}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -413,29 +597,96 @@ const StudentDashboard = () => {
             <Typography variant="h6" gutterBottom>
               My Course Applications
             </Typography>
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               Track your course application status and manage applications.
             </Typography>
-            <Grid container spacing={2} sx={{ mt: 2 }}>
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6">National University of Lesotho</Typography>
-                    <Typography variant="body2" color="text.secondary">Computer Science</Typography>
-                    <Typography variant="body2" color="success.main">Status: Accepted</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12}>
-                <Card variant="outlined">
-                  <CardContent>
-                    <Typography variant="h6">Limkokwing University</Typography>
-                    <Typography variant="body2" color="text.secondary">Business Administration</Typography>
-                    <Typography variant="body2" color="warning.main">Status: Pending</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
+            
+            {myApplications.length === 0 ? (
+              <Card variant="outlined">
+                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    You haven't submitted any applications yet.
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    sx={{ mt: 2 }}
+                    onClick={() => setActiveTab(1)}
+                  >
+                    Browse Institutions
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Institution</strong></TableCell>
+                        <TableCell><strong>Course</strong></TableCell>
+                        <TableCell><strong>Level</strong></TableCell>
+                        <TableCell><strong>Applied Date</strong></TableCell>
+                        <TableCell><strong>Status</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {myApplications.map((app) => (
+                        <TableRow key={app.id}>
+                          <TableCell>{app.institutionName}</TableCell>
+                          <TableCell>{app.course}</TableCell>
+                          <TableCell>{app.level}</TableCell>
+                          <TableCell>
+                            {app.appliedAt?.toDate ? 
+                              new Date(app.appliedAt.toDate()).toLocaleDateString() : 
+                              'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={app.confirmed ? 'Confirmed' : app.status || 'Pending'} 
+                              color={
+                                app.confirmed ? 'success' :
+                                app.status === 'admitted' ? 'success' : 
+                                app.status === 'rejected' ? 'error' :
+                                app.status === 'declined' ? 'default' :
+                                app.status === 'waiting' ? 'info' :
+                                'warning'
+                              }
+                              size="small"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                
+                {admittedApplications.length > 0 && (
+                  <Card variant="outlined" sx={{ mt: 3, bgcolor: 'success.light', color: 'success.contrastText' }}>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom>
+                        🎉 Congratulations! You have {admittedApplications.length} admission(s)
+                      </Typography>
+                      {admittedApplications.map(app => (
+                        <Typography key={app.id} variant="body2" sx={{ mb: 1 }}>
+                          • {app.institutionName} - {app.course} ({app.level})
+                          {app.confirmed && <strong> [CONFIRMED]</strong>}
+                        </Typography>
+                      ))}
+                      {admittedApplications.length > 1 && !admittedApplications.some(app => app.confirmed) && (
+                        <Button 
+                          variant="contained" 
+                          color="primary"
+                          sx={{ mt: 2 }}
+                          onClick={() => setInstitutionSelectionDialogOpen(true)}
+                        >
+                          Choose Your Institution
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
@@ -588,13 +839,19 @@ const StudentDashboard = () => {
 
       {/* Job Browser Dialog */}
       <Dialog open={jobDialogOpen} onClose={() => setJobDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Available Job Opportunities</DialogTitle>
+        <DialogTitle>Available Job Opportunities (Matched to Your Profile)</DialogTitle>
         <DialogContent>
-          <List>
-            {jobs.length === 0 ? (
-              <Typography color="text.secondary">No jobs available at the moment.</Typography>
-            ) : (
-              jobs.map((job) => (
+          {jobs.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                No qualified job opportunities available at the moment. 
+                Jobs are filtered based on your qualifications, experience, and skills.
+                Update your profile to receive more job matches.
+              </Typography>
+            </Alert>
+          ) : (
+            <List>
+              {jobs.map((job) => (
                 <ListItem
                   key={job.id}
                   sx={{ 
@@ -613,8 +870,22 @@ const StudentDashboard = () => {
                       <Typography variant="body2" sx={{ mt: 1 }}>{job.location}</Typography>
                       <Box sx={{ mt: 1 }}>
                         <Chip label={job.type} size="small" sx={{ mr: 1 }} />
-                        <Chip label={job.experience} size="small" color="primary" />
+                        <Chip label={job.experience} size="small" color="primary" sx={{ mr: 1 }} />
+                        {job.matchScore && (
+                          <Chip 
+                            label={`${job.matchScore}% Match`} 
+                            size="small" 
+                            color={job.matchScore >= 80 ? 'success' : job.matchScore >= 60 ? 'warning' : 'default'}
+                          />
+                        )}
                       </Box>
+                      {job.matchReasons && job.matchReasons.length > 0 && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="caption" color="success.main">
+                            ✓ {job.matchReasons.join(' • ')}
+                          </Typography>
+                        </Box>
+                      )}
                     </Box>
                     <Button 
                       variant="contained" 
@@ -628,9 +899,9 @@ const StudentDashboard = () => {
                     <Typography variant="body2" sx={{ mt: 2 }}>{job.description}</Typography>
                   )}
                 </ListItem>
-              ))
-            )}
-          </List>
+              ))}
+            </List>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setJobDialogOpen(false)}>Close</Button>
@@ -733,6 +1004,49 @@ const StudentDashboard = () => {
         <DialogActions>
           <Button onClick={() => setProfileDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleProfileUpdate} variant="contained">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Institution Selection Dialog - For multiple admissions */}
+      <Dialog 
+        open={institutionSelectionDialogOpen} 
+        onClose={() => {}} 
+        maxWidth="sm" 
+        fullWidth
+        disableEscapeKeyDown
+      >
+        <DialogTitle>Choose Your Institution</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Congratulations! You have been admitted to multiple institutions. 
+            Please select one institution to confirm your enrollment.
+          </Typography>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Select Institution</InputLabel>
+            <Select
+              value={selectedInstitution}
+              label="Select Institution"
+              onChange={(e) => setSelectedInstitution(e.target.value)}
+            >
+              {admittedApplications.map((app) => (
+                <MenuItem key={app.id} value={app.id}>
+                  {app.institutionName} - {app.course} ({app.level})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Once you confirm your choice, other admissions will be automatically declined.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={handleInstitutionSelection} 
+            variant="contained"
+            disabled={!selectedInstitution}
+          >
+            Confirm Selection
+          </Button>
         </DialogActions>
       </Dialog>
 

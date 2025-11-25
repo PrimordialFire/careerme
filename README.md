@@ -14,34 +14,41 @@ This platform facilitates:
 
 ### Student Module
 - Browse higher learning institutions and courses
-- Apply for up to 2 courses per institution
+- Apply for up to 2 courses per institution (with qualification validation)
+- **Email verification required** for account activation
 - View admission results and manage applications
 - Upload transcripts and certificates
-- Receive job notifications matching qualifications
+- Receive job notifications matching qualifications (60% match threshold)
 - Apply for job opportunities
+- Select preferred institution when admitted to multiple programs
 
 ### Institution Module
+- Register with **email verification**
 - Manage faculties and courses
 - Review and process student applications
-- Publish admission results
+- Publish admission results with waiting list support
 - Track student enrollment
+- Cannot admit same student to multiple programs
 - Update institution profile
 
 ### Company Module
+- Register with **email verification and admin approval required**
 - Post job opportunities with specific requirements
 - View automatically filtered qualified candidates
 - Manage recruitment pipeline
 - Connect with graduates based on:
-  - Academic performance
+  - Academic performance (GPA requirements)
   - Extra certificates
   - Work experience
-  - Job relevance
+  - Job relevance and skills match
 
 ### Admin Module
 - Manage institutions and companies
+- **Approve/reject company registrations**
+- **Suspend/reactivate company accounts**
 - Approve/suspend user accounts
 - Generate system reports
-- Monitor platform activities
+- Monitor platform activities (pending approvals tracked)
 - System configuration
 
 ## 🛠️ Technology Stack
@@ -313,18 +320,31 @@ career/
 
 ### Key Features Implemented:
 - ✅ Multi-role authentication system
+- ✅ **Email verification for all users**
+- ✅ **Company approval workflow (admin must approve)**
 - ✅ Protected routes by user role
 - ✅ Responsive Material-UI interface
 - ✅ Firebase integration setup
 - ✅ Application validation rules
-- ✅ Job matching algorithm
+- ✅ Job matching algorithm (60% threshold)
 - ✅ Automatic candidate filtering
+- ✅ Waiting list system with auto-promotion
 
 ### Validation Rules:
 - Students can apply for maximum 2 courses per institution
-- Qualification requirements are checked before applications
-- Only qualified students receive job notifications
+- Students can only apply for courses they qualify for (education level matching)
+- Institutions cannot admit same student to multiple programs
+- Only qualified students receive job notifications (60% match score)
 - Multiple admission handling with waiting list promotion
+- **Email verification required before login**
+- **Companies require admin approval before platform access**
+
+### Account Status Workflow:
+1. **Registration**: User creates account → Email verification sent
+2. **Email Verification**: User must verify email before login
+3. **Company Approval** (Companies only): Admin reviews and approves/rejects
+4. **Active**: User can access platform features
+5. **Suspended/Rejected**: Admin can suspend or reject accounts
 
 ## 🔧 Development Guidelines
 

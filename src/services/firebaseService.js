@@ -9,8 +9,7 @@ import {
   deleteDoc, 
   query, 
   where, 
-  orderBy,
-  limit
+  orderBy
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { toast } from 'react-toastify';
@@ -304,6 +303,63 @@ export const jobService = {
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
       console.error('Error fetching job applications:', error);
+      throw error;
+    }
+  }
+};
+
+// Waiting List Services
+export const waitingListService = {
+  // Promote first student from waiting list to admitted
+  async promoteFromWaitingList(institutionId, courseId, courseName) {
+    try {
+      // Get all waiting applications for this course at this institution
+      const allAppsSnapshot = await getDocs(collection(db, 'applications'));
+      const waitingApps = allAppsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(app => 
+          (app.institutionId === institutionId || app.institutionName) &&
+          (app.courseId === courseId || app.course === courseName) &&
+          app.status === 'waiting'
+        )
+        .sort((a, b) => {
+          const aTime = a.appliedAt?.toDate ? a.appliedAt.toDate() : new Date(a.appliedAt);
+          const bTime = b.appliedAt?.toDate ? b.appliedAt.toDate() : new Date(b.appliedAt);
+          return aTime - bTime;
+        });
+      
+      if (waitingApps.length > 0) {
+        const waitingApp = waitingApps[0];
+        await updateDoc(doc(db, 'applications', waitingApp.id), {
+          status: 'admitted',
+          promotedAt: new Date(),
+          promotedFrom: 'waiting'
+        });
+        return { id: waitingApp.id, ...waitingApp };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error promoting from waiting list:', error);
+      throw error;
+    }
+  },
+
+  // Get waiting list count for a course
+  async getWaitingListCount(institutionId, courseId) {
+    try {
+      const allAppsSnapshot = await getDocs(collection(db, 'applications'));
+      const waitingCount = allAppsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(app => 
+          app.institutionId === institutionId &&
+          app.courseId === courseId &&
+          app.status === 'waiting'
+        ).length;
+      
+      return waitingCount;
+    } catch (error) {
+      console.error('Error getting waiting list count:', error);
       throw error;
     }
   }

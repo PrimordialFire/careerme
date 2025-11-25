@@ -25,7 +25,14 @@ import {
   MenuItem,
   Chip,
   Snackbar,
-  Alert
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
 } from '@mui/material';
 import { 
   Dashboard as DashboardIcon,
@@ -66,6 +73,7 @@ const CompanyDashboard = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [jobs, setJobs] = useState([]);
+  const [qualifiedCandidates, setQualifiedCandidates] = useState([]);
   const [jobForm, setJobForm] = useState({
     title: '',
     description: '',
@@ -94,6 +102,7 @@ const CompanyDashboard = () => {
   useEffect(() => {
     if (currentUser) {
       loadJobs();
+      loadQualifiedCandidates();
     }
   }, [currentUser]);
 
@@ -104,6 +113,64 @@ const CompanyDashboard = () => {
       setJobs(jobsList.filter(job => job.companyId === currentUser?.uid));
     } catch (error) {
       console.error('Error loading jobs:', error);
+    }
+  };
+  
+  const loadQualifiedCandidates = async () => {
+    try {
+      // Load all students and their documents
+      const [usersSnap, documentsSnap, applicationsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'documents')),
+        getDocs(collection(db, 'applications'))
+      ]);
+      
+      const students = usersSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(user => user.role === 'student');
+      
+      const documents = documentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const applications = applicationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Filter candidates based on job requirements
+      const qualified = students.map(student => {
+        // Get student's documents and applications
+        const studentDocs = documents.filter(doc => doc.studentId === student.id);
+        const studentApps = applications.filter(app => 
+          app.studentId === student.id && app.status === 'admitted'
+        );
+        
+        // Calculate qualification score
+        const hasTranscripts = studentDocs.some(doc => doc.type === 'Transcript');
+        const hasCertificates = studentDocs.some(doc => doc.type === 'Certificate');
+        const hasEducation = studentApps.length > 0;
+        const educationLevel = studentApps.length > 0 ? studentApps[0].level : 'None';
+        
+        // Simple scoring system
+        let qualificationScore = 0;
+        if (hasTranscripts) qualificationScore += 30;
+        if (hasCertificates) qualificationScore += 20;
+        if (hasEducation) qualificationScore += 30;
+        if (educationLevel === 'PhD') qualificationScore += 20;
+        else if (educationLevel === 'Masters') qualificationScore += 15;
+        else if (educationLevel === 'Undergraduate') qualificationScore += 10;
+        
+        return {
+          ...student,
+          qualificationScore,
+          hasTranscripts,
+          hasCertificates,
+          educationLevel,
+          documentCount: studentDocs.length
+        };
+      }).filter(candidate => candidate.qualificationScore > 30); // Minimum threshold
+      
+      // Sort by qualification score
+      qualified.sort((a, b) => b.qualificationScore - a.qualificationScore);
+      
+      setQualifiedCandidates(qualified);
+    } catch (error) {
+      console.error('Error loading candidates:', error);
     }
   };
 
@@ -172,10 +239,10 @@ const CompanyDashboard = () => {
   };
 
   const stats = [
-    { title: 'Active Job Postings', value: '8', icon: <Work color="primary" /> },
-    { title: 'Total Applications', value: '45', icon: <People color="success" /> },
-    { title: 'Qualified Candidates', value: '23', icon: <People color="info" /> },
-    { title: 'Interviews Scheduled', value: '12', icon: <Business color="warning" /> }
+    { title: 'Active Job Postings', value: jobs.length, icon: <Work color="primary" /> },
+    { title: 'Total Applications', value: qualifiedCandidates.reduce((sum, job) => sum + (job.candidates?.length || 0), 0), icon: <People color="success" /> },
+    { title: 'Qualified Candidates', value: qualifiedCandidates.reduce((sum, job) => sum + (job.candidates?.length || 0), 0), icon: <People color="info" /> },
+    { title: 'Jobs Posted', value: jobs.length, icon: <Business color="warning" /> }
   ];
 
   return (
@@ -189,7 +256,7 @@ const CompanyDashboard = () => {
             </Typography>
           </Box>
           <IconButton color="inherit" sx={{ mr: 1 }}>
-            <Badge badgeContent={7} color="error">
+            <Badge badgeContent={qualifiedCandidates.reduce((sum, job) => sum + (job.candidates?.length || 0), 0)} color="error">
               <Notifications />
             </Badge>
           </IconButton>
@@ -206,23 +273,30 @@ const CompanyDashboard = () => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ textAlign: 'center' }}>
           Welcome, {userData?.companyName || 'Company'}
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
           Manage job postings and connect with qualified graduates
         </Typography>
 
         {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid container spacing={3} sx={{ mb: 4, justifyContent: 'center' }}>
           {stats.map((stat, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card>
+              <Card sx={{ 
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                boxShadow: 3,
+                '&:hover': { boxShadow: 6 }
+              }}>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <Box sx={{ mb: 2 }}>
                     {stat.icon}
                   </Box>
-                  <Typography variant="h4" component="div" gutterBottom>
+                  <Typography variant="h3" component="div" gutterBottom sx={{ fontWeight: 'bold' }}>
                     {stat.value}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -333,13 +407,83 @@ const CompanyDashboard = () => {
             <Typography variant="h6" gutterBottom>
               Qualified Candidates
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              View candidates that match your job requirements based on:
-              <br />• Academic performance
-              <br />• Extra certificates
-              <br />• Work experience
-              <br />• Relevance to job post
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+              Automatically filtered candidates based on:
+              academic performance, certificates, work experience, and relevance to job requirements.
             </Typography>
+            
+            {qualifiedCandidates.length === 0 ? (
+              <Card variant="outlined">
+                <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No qualified candidates found at the moment.
+                  </Typography>
+                </CardContent>
+              </Card>
+            ) : (
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell><strong>Name</strong></TableCell>
+                      <TableCell><strong>Email</strong></TableCell>
+                      <TableCell><strong>Education Level</strong></TableCell>
+                      <TableCell><strong>Documents</strong></TableCell>
+                      <TableCell><strong>Score</strong></TableCell>
+                      <TableCell><strong>Status</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {qualifiedCandidates.map((candidate) => (
+                      <TableRow key={candidate.id}>
+                        <TableCell>{candidate.name}</TableCell>
+                        <TableCell>{candidate.email}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={candidate.educationLevel || 'N/A'} 
+                            color={
+                              candidate.educationLevel === 'PhD' ? 'error' :
+                              candidate.educationLevel === 'Masters' ? 'warning' :
+                              candidate.educationLevel === 'Undergraduate' ? 'primary' :
+                              'default'
+                            }
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {candidate.hasTranscripts && <Chip label="Transcript" size="small" sx={{ mr: 0.5 }} />}
+                          {candidate.hasCertificates && <Chip label="Certificates" size="small" color="success" />}
+                          {!candidate.hasTranscripts && !candidate.hasCertificates && 'None'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={`${candidate.qualificationScore}%`}
+                            color={
+                              candidate.qualificationScore >= 80 ? 'success' :
+                              candidate.qualificationScore >= 60 ? 'primary' :
+                              'warning'
+                            }
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            size="small" 
+                            variant="outlined"
+                            onClick={() => {
+                              setSnackbarMessage(`Contact ${candidate.name} at ${candidate.email}`);
+                              setSnackbarOpen(true);
+                            }}
+                          >
+                            Contact
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={4}>

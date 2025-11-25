@@ -40,6 +40,21 @@ const Register = () => {
     setError('');
     
     try {
+      // Validate email format with proper regex
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!data.email || !emailRegex.test(data.email.trim())) {
+        setError('Please enter a valid email address (e.g., user@example.com)');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate password
+      if (!data.password || data.password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        setLoading(false);
+        return;
+      }
+      
       const userData = {
         name: data.name,
         phone: data.phone,
@@ -62,13 +77,26 @@ const Register = () => {
           companySize: data.companySize,
           website: data.website,
           description: data.description
+        }),
+        ...(userRole === USER_ROLES.ADMIN && {
+          department: data.department,
+          employeeId: data.employeeId
         })
       };
       
-      await registerUser(data.email, data.password, userData, userRole);
+      await registerUser(data.email.trim(), data.password, userData, userRole);
       navigate('/login');
     } catch (err) {
-      setError('Failed to create account. Please try again.');
+      console.error('Registration error:', err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError('This email is already registered. Please use a different email or try logging in.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email format. Please enter a valid email address (e.g., user@example.com).');
+      } else if (err.code === 'auth/weak-password') {
+        setError('Password is too weak. Please use at least 6 characters.');
+      } else {
+        setError(err.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -97,6 +125,7 @@ const Register = () => {
           <MenuItem value={USER_ROLES.STUDENT}>Student</MenuItem>
           <MenuItem value={USER_ROLES.INSTITUTE}>Educational Institution</MenuItem>
           <MenuItem value={USER_ROLES.COMPANY}>Company/Employer</MenuItem>
+          <MenuItem value={USER_ROLES.ADMIN}>Administrator</MenuItem>
         </Select>
       </FormControl>
       <Button
@@ -134,12 +163,13 @@ const Register = () => {
             {...register('email', {
               required: 'Email is required',
               pattern: {
-                value: /^\S+@\S+$/i,
-                message: 'Invalid email address'
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: 'Please enter a valid email address (e.g., user@example.com)'
               }
             })}
             error={!!errors.email}
             helperText={errors.email?.message}
+            placeholder="example@email.com"
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -377,6 +407,31 @@ const Register = () => {
               error={!!errors.description}
               helperText={errors.description?.message}
             />
+          </Grid>
+        </Grid>
+      )}
+
+      {userRole === USER_ROLES.ADMIN && (
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Department"
+              {...register('department')}
+              placeholder="e.g., System Administration"
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Employee ID (Optional)"
+              {...register('employeeId')}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Alert severity="warning">
+              Administrator accounts have full system access. Please use responsibly.
+            </Alert>
           </Grid>
         </Grid>
       )}

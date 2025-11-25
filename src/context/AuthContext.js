@@ -4,7 +4,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut,
-  updateProfile
+  updateProfile,
+  sendEmailVerification
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -43,10 +44,13 @@ export const AuthProvider = ({ children }) => {
         displayName: userData.name
       });
 
-      // Email verification disabled for testing
-      // await sendEmailVerification(user);
+      // Send email verification
+      await sendEmailVerification(user);
 
       // Save user data to Firestore
+      // Companies require admin approval, others are active after email verification
+      const userStatus = role === 'company' ? 'pending' : 'active';
+      
       await setDoc(doc(db, 'users', user.uid), {
         uid: user.uid,
         email: user.email,
@@ -54,11 +58,15 @@ export const AuthProvider = ({ children }) => {
         role: role,
         createdAt: new Date(),
         emailVerified: false,
-        status: 'active', // All users active by default for testing
+        status: userStatus,
         ...userData
       });
 
-      toast.success('Registration successful! You can now login.');
+      if (role === 'company') {
+        toast.success('Registration successful! Please verify your email and wait for admin approval before logging in.');
+      } else {
+        toast.success('Registration successful! Please check your email to verify your account before logging in.');
+      }
       return { user, role };
     } catch (error) {
       toast.error(error.message);
@@ -71,14 +79,38 @@ export const AuthProvider = ({ children }) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       
-      // Email verification disabled for testing - users can login immediately
+      // Check email verification
+      if (!user.emailVerified) {
+        toast.error('Please verify your email before logging in. Check your inbox for the verification link.');
+        await signOut(auth);
+        return null;
+      }
 
       // Get user role and data from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = userDoc.data();
         
-        // Approval check disabled for testing - users can login immediately
+        // Check account status (important for company approval)
+        if (userData.status === 'pending') {
+          toast.error('Your account is pending approval. Please wait for admin approval.');
+          await signOut(auth);
+          return null;
+        }
+        
+        if (userData.status === 'rejected' || userData.status === 'suspended') {
+          toast.error('Your account has been ' + userData.status + '. Please contact support.');
+          await signOut(auth);
+          return null;
+        }
+        
+        // Update email verified status in Firestore if not already updated
+        if (!userData.emailVerified && user.emailVerified) {
+          await setDoc(doc(db, 'users', user.uid), {
+            ...userData,
+            emailVerified: true
+          });
+        }
         
         setUserRole(userData.role);
         toast.success('Login successful!');
