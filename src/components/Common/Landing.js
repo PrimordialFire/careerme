@@ -54,7 +54,7 @@ const Landing = () => {
         'View qualified candidates',
         'Automatic filtering by qualifications',
         'Manage company profile',
-        'Connect with graduates'
+        'Connect with qualified graduates'
       ]
     },
     {
@@ -64,9 +64,9 @@ const Landing = () => {
       features: [
         'Manage institutions and companies',
         'Oversee system operations',
-        'Generate reports',
+        'Generate comprehensive reports',
         'Monitor user activities',
-        'System configuration'
+        'Configure system settings'
       ]
     }
   ];
@@ -148,12 +148,12 @@ const Landing = () => {
           Choose your role to get started with the platform
         </Typography>
         
-        <Grid container spacing={4}>
+        <Grid container spacing={4} justifyContent="center" alignItems="stretch">
           {userTypes.map((userType, index) => (
-            <Grid item xs={12} md={6} key={index}>
+            <Grid item xs={12} md={6} key={index} sx={{ display: 'flex' }}>
               <Card 
                 sx={{ 
-                  height: '100%', 
+                  width: '100%',
                   display: 'flex', 
                   flexDirection: 'column',
                   transition: 'transform 0.2s ease-in-out',
@@ -163,7 +163,7 @@ const Landing = () => {
                   }
                 }}
               >
-                <CardContent sx={{ flexGrow: 1, textAlign: 'center', p: 3 }}>
+                <CardContent sx={{ flexGrow: 1, textAlign: 'center', p: 3, display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ mb: 2 }}>
                     {userType.icon}
                   </Box>
@@ -173,7 +173,7 @@ const Landing = () => {
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     {userType.description}
                   </Typography>
-                  <Box sx={{ textAlign: 'left' }}>
+                  <Box sx={{ textAlign: 'left', flexGrow: 1 }}>
                     {userType.features.map((feature, featureIndex) => (
                       <Typography key={featureIndex} variant="body2" sx={{ mb: 1 }}>
                         • {feature}

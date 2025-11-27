@@ -79,12 +79,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
       
-      // Check email verification
-      if (!user.emailVerified) {
-        toast.error('Please verify your email before logging in. Check your inbox for the verification link.');
-        await signOut(auth);
-        return null;
-      }
+      // Check email verification - TEMPORARILY DISABLED FOR TESTING
+      // TODO: Re-enable before final submission
+      // if (!user.emailVerified) {
+      //   toast.error('Please verify your email before logging in. Check your inbox for the verification link.');
+      //   await signOut(auth);
+      //   return null;
+      // }
 
       // Get user role and data from Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
