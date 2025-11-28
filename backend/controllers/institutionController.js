@@ -128,7 +128,7 @@ exports.addFaculty = async (req, res) => {
     const db = getFirestore();
     const facultyData = {
       ...req.body,
-      institutionId: req.params.id,
+      instituteId: req.params.id, // Use 'instituteId' for Firestore rules compatibility
       createdAt: new Date().toISOString()
     };
 

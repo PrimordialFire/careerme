@@ -48,6 +48,10 @@
 - [ ] Ensure Authentication is enabled
 - [ ] Verify Firestore database is created
 - [ ] Check email verification templates
+ - [ ] Backend `.env` created in `backend/` with either:
+    - `FIREBASE_SERVICE_ACCOUNT_PATH=./firebase-service-account.json` (file present)
+    - or `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` set
+ - [ ] `FRONTEND_URL` set to deployed host or `http://localhost:3000`
 
 ### Deploy Firestore Rules
 ```bash

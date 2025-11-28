@@ -21,18 +21,18 @@ service cloud.firestore {
       allow create: if request.auth != null;
     }
     
-    // Faculties collection - institutions can add and read their own faculties
+    // Faculties collection - institutions and admins can add, update, delete
     match /faculties/{facultyId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.instituteId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.instituteId == request.auth.uid;
+      allow create: if (request.auth != null && request.resource.data.instituteId == request.auth.uid) || isAdmin();
+      allow update, delete: if (request.auth != null && resource.data.instituteId == request.auth.uid) || isAdmin();
     }
     
-    // Courses collection - institutions can manage their courses
+    // Courses collection - institutions and admins can manage courses
     match /courses/{courseId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.instituteId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.instituteId == request.auth.uid;
+      allow create: if (request.auth != null && request.resource.data.instituteId == request.auth.uid) || isAdmin();
+      allow update, delete: if (request.auth != null && resource.data.instituteId == request.auth.uid) || isAdmin();
     }
     
     // Applications collection - students can create, institutions can read
