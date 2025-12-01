@@ -1109,9 +1109,9 @@ const AdminDashboard = () => {
           </TabPanel>
 
           <TabPanel value={activeTab} index={7}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6">
-                System Reports
+                System Reports & Analytics
               </Typography>
               <Button 
                 variant="contained" 
@@ -1121,9 +1121,142 @@ const AdminDashboard = () => {
                 Generate Report
               </Button>
             </Box>
-            <Typography variant="body1" color="text.secondary">
-              View and generate comprehensive system reports and analytics.
-            </Typography>
+            
+            <Grid container spacing={3}>
+              {/* Summary Report Cards */}
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      📊 Total Registrations
+                    </Typography>
+                    <Typography variant="h3" gutterBottom>
+                      {users.length + institutions.length + companies.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Students: {users.filter(u => u.role === 'student').length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Institutions: {institutions.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Companies: {companies.length}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="success.main">
+                      🎓 Applications Overview
+                    </Typography>
+                    <Typography variant="h3" gutterBottom>
+                      {applications.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Pending: {applications.filter(a => a.status === 'pending').length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Admitted: {applications.filter(a => a.status === 'admitted').length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Rejected: {applications.filter(a => a.status === 'rejected').length}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="info.main">
+                      🏢 Company Status
+                    </Typography>
+                    <Typography variant="h3" gutterBottom>
+                      {companies.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Approved: {companies.filter(c => c.status === 'approved').length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Pending: {companies.filter(c => c.status === 'pending').length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Rejected: {companies.filter(c => c.status === 'rejected').length}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Card sx={{ height: '100%' }}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="secondary.main">
+                      📚 Academic Content
+                    </Typography>
+                    <Typography variant="h3" gutterBottom>
+                      {courses.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Courses: {courses.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Faculties: {faculties.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      • Institutions: {institutions.length}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Detailed Analytics Table */}
+              <Grid item xs={12}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      Institution Performance
+                    </Typography>
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell><strong>Institution</strong></TableCell>
+                            <TableCell align="center"><strong>Applications</strong></TableCell>
+                            <TableCell align="center"><strong>Admissions</strong></TableCell>
+                            <TableCell align="center"><strong>Acceptance Rate</strong></TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {institutions.slice(0, 5).map((inst) => {
+                            const instApps = applications.filter(a => a.institutionName === inst.name);
+                            const admitted = instApps.filter(a => a.status === 'admitted').length;
+                            const rate = instApps.length > 0 ? ((admitted / instApps.length) * 100).toFixed(1) : '0.0';
+                            
+                            return (
+                              <TableRow key={inst.id}>
+                                <TableCell>{inst.name}</TableCell>
+                                <TableCell align="center">{instApps.length}</TableCell>
+                                <TableCell align="center">{admitted}</TableCell>
+                                <TableCell align="center">
+                                  <Chip 
+                                    label={`${rate}%`} 
+                                    size="small"
+                                    color={parseFloat(rate) > 50 ? 'success' : 'default'}
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
           </TabPanel>
 
           <TabPanel value={activeTab} index={8}>

@@ -232,9 +232,28 @@ const StudentDashboard = () => {
 
   const handleApplicationSubmit = async () => {
     try {
-      // Validate required fields
-      if (!applicationForm.institutionName || !applicationForm.course || !applicationForm.previousEducation) {
-        setSnackbarMessage('Please fill in all required fields!');
+      // Enhanced validation of required fields
+      if (!applicationForm.institutionName) {
+        setSnackbarMessage('Please select an institution!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      if (!applicationForm.course || applicationForm.course.trim() === '') {
+        setSnackbarMessage('Please enter the course name!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      if (!applicationForm.previousEducation || applicationForm.previousEducation.trim() === '') {
+        setSnackbarMessage('Please specify your previous education!');
+        setSnackbarOpen(true);
+        return;
+      }
+      
+      // Validate course name length
+      if (applicationForm.course.length < 3) {
+        setSnackbarMessage('Course name must be at least 3 characters long!');
         setSnackbarOpen(true);
         return;
       }
@@ -269,23 +288,29 @@ const StudentDashboard = () => {
         return;
       }
       
-      // Check qualification requirements based on level
+      // Enhanced qualification requirements check based on level
       const requiredEducation = {
-        'Undergraduate': ['High School', 'Secondary', 'O-Level', 'A-Level'],
-        'Masters': ['Bachelor', 'Undergraduate', 'Degree'],
-        'PhD': ['Masters', 'Graduate']
+        'Certificate': ['High School', 'Secondary', 'O-Level', 'A-Level', 'Grade 12', 'Form E'],
+        'Diploma': ['High School', 'Secondary', 'O-Level', 'A-Level', 'Certificate', 'Grade 12', 'Form E'],
+        'Undergraduate': ['High School', 'Secondary', 'O-Level', 'A-Level', 'Diploma', 'Grade 12', 'Form E'],
+        'Postgraduate': ['Bachelor', 'Undergraduate', 'Degree', 'BSc', 'BA', 'BEd'],
+        'Masters': ['Bachelor', 'Undergraduate', 'Degree', 'BSc', 'BA', 'BEd'],
+        'PhD': ['Masters', 'Graduate', 'MSc', 'MA', 'MBA', 'MEd']
       };
       
       const level = applicationForm.level;
       const previousEd = applicationForm.previousEducation.toLowerCase();
       
+      // Check if student meets minimum education requirement
       if (requiredEducation[level]) {
-        const qualifies = requiredEducation[level].some(req => 
+        const meetsRequirement = requiredEducation[level].some(req => 
           previousEd.includes(req.toLowerCase())
         );
         
-        if (!qualifies) {
-          setSnackbarMessage(`Error: You do not qualify for ${level} programs. Required: ${requiredEducation[level].join(' or ')} qualification!`);
+        if (!meetsRequirement) {
+          setSnackbarMessage(
+            `Qualification Error: ${level} programs require one of the following: ${requiredEducation[level].join(', ')}. Your education: ${applicationForm.previousEducation}`
+          );
           setSnackbarOpen(true);
           return;
         }

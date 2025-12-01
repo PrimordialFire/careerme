@@ -1,6 +1,6 @@
 // Utility functions for validation and business logic
 
-// Validation rules for course applications
+// Enhanced validation rules for course applications
 export const validateCourseApplication = (studentData, courseData) => {
   const errors = [];
 
@@ -9,8 +9,10 @@ export const validateCourseApplication = (studentData, courseData) => {
     const studentGrade = parseFloat(studentData.grades);
     const minimumGrade = parseFloat(courseData.minimumGrade);
     
-    if (studentGrade < minimumGrade) {
-      errors.push(`Minimum grade requirement not met. Required: ${minimumGrade}, Your grade: ${studentGrade}`);
+    if (isNaN(studentGrade)) {
+      errors.push('Invalid grade format. Please provide a valid grade.');
+    } else if (studentGrade < minimumGrade) {
+      errors.push(`Minimum grade requirement not met. Required: ${minimumGrade}%, Your grade: ${studentGrade}%`);
     }
   }
 
@@ -33,10 +35,98 @@ export const validateCourseApplication = (studentData, courseData) => {
     }
   }
 
+  // Check education level match
+  if (courseData.level && studentData.educationLevel) {
+    const levelHierarchy = {
+      'Certificate': 1,
+      'Diploma': 2,
+      'Undergraduate': 3,
+      'Postgraduate': 4,
+      'Masters': 5,
+      'PhD': 6
+    };
+    
+    const requiredLevel = levelHierarchy[courseData.level] || 0;
+    const studentLevel = levelHierarchy[studentData.educationLevel] || 0;
+    
+    if (studentLevel < requiredLevel - 1) {
+      errors.push(`Education level requirement not met. This ${courseData.level} program requires at least ${courseData.level === 'Undergraduate' ? 'high school certificate' : 'a lower qualification'}.`);
+    }
+  }
+
   return {
     isValid: errors.length === 0,
     errors
   };
+};
+
+// Enhanced form field validation
+export const validateFormField = (fieldName, value, rules = {}) => {
+  const errors = [];
+  
+  // Required field validation
+  if (rules.required && (!value || value.toString().trim() === '')) {
+    errors.push(`${fieldName} is required`);
+    return errors;
+  }
+  
+  // Email validation
+  if (rules.email && value) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) {
+      errors.push(`Please enter a valid email address`);
+    }
+  }
+  
+  // Phone validation
+  if (rules.phone && value) {
+    const phoneRegex = /^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/;
+    if (!phoneRegex.test(value.replace(/\s/g, ''))) {
+      errors.push(`Please enter a valid phone number`);
+    }
+  }
+  
+  // Minimum length validation
+  if (rules.minLength && value && value.length < rules.minLength) {
+    errors.push(`${fieldName} must be at least ${rules.minLength} characters`);
+  }
+  
+  // Maximum length validation
+  if (rules.maxLength && value && value.length > rules.maxLength) {
+    errors.push(`${fieldName} must not exceed ${rules.maxLength} characters`);
+  }
+  
+  // Number range validation
+  if (rules.min !== undefined && value && parseFloat(value) < rules.min) {
+    errors.push(`${fieldName} must be at least ${rules.min}`);
+  }
+  
+  if (rules.max !== undefined && value && parseFloat(value) > rules.max) {
+    errors.push(`${fieldName} must not exceed ${rules.max}`);
+  }
+  
+  // Pattern validation
+  if (rules.pattern && value && !rules.pattern.test(value)) {
+    errors.push(rules.patternMessage || `${fieldName} format is invalid`);
+  }
+  
+  return errors;
+};
+
+// Validate entire form
+export const validateForm = (formData, validationRules) => {
+  const allErrors = {};
+  let isValid = true;
+  
+  Object.keys(validationRules).forEach(fieldName => {
+    const errors = validateFormField(fieldName, formData[fieldName], validationRules[fieldName]);
+    if (errors.length > 0) {
+      allErrors[fieldName] = errors;
+      isValid = false;
+    }
+  });
+  
+  return { isValid, errors: allErrors };
 };
 
 // Calculate age from date of birth
