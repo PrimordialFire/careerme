@@ -98,6 +98,7 @@ const StudentDashboard = () => {
   const [admittedApplications, setAdmittedApplications] = useState([]);
   const [institutionSelectionDialogOpen, setInstitutionSelectionDialogOpen] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState('');
+  const [myDocuments, setMyDocuments] = useState([]);
 
   React.useEffect(() => {
     const fetchUserData = async () => {
@@ -117,8 +118,21 @@ const StudentDashboard = () => {
   useEffect(() => {
     loadInstitutionsAndJobs();
     loadMyApplications();
+    loadMyDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]); // Reload when userData changes to apply job filtering
+
+  const loadMyDocuments = async () => {
+    try {
+      const documentsSnap = await getDocs(collection(db, 'documents'));
+      const docs = documentsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(doc => doc.studentId === currentUser?.uid);
+      setMyDocuments(docs);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+    }
+  };
 
   const loadInstitutionsAndJobs = async () => {
     try {
@@ -380,6 +394,7 @@ const StudentDashboard = () => {
         name: '',
         description: ''
       });
+      loadMyDocuments(); // Refresh document list
     } catch (error) {
       setSnackbarMessage('Error uploading document. Please try again.');
       setSnackbarOpen(true);
@@ -798,6 +813,55 @@ const StudentDashboard = () => {
                 </Card>
               </Grid>
             </Grid>
+
+            {/* Display Uploaded Documents */}
+            {myDocuments.length > 0 && (
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" gutterBottom>
+                  My Uploaded Documents ({myDocuments.length})
+                </Typography>
+                <TableContainer component={Paper} sx={{ mt: 2 }}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell><strong>Type</strong></TableCell>
+                        <TableCell><strong>Name</strong></TableCell>
+                        <TableCell><strong>Description</strong></TableCell>
+                        <TableCell><strong>Uploaded</strong></TableCell>
+                        <TableCell><strong>Status</strong></TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {myDocuments.map((doc) => (
+                        <TableRow key={doc.id}>
+                          <TableCell>
+                            <Chip 
+                              label={doc.type} 
+                              size="small"
+                              color={doc.type === 'Transcript' ? 'primary' : 'secondary'}
+                            />
+                          </TableCell>
+                          <TableCell>{doc.name}</TableCell>
+                          <TableCell>{doc.description || '-'}</TableCell>
+                          <TableCell>
+                            {doc.uploadedAt?.toDate ? 
+                              doc.uploadedAt.toDate().toLocaleDateString() : 
+                              new Date(doc.uploadedAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={doc.status || 'Uploaded'} 
+                              size="small"
+                              color="success"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={5}>
