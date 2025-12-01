@@ -21,6 +21,7 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { useAuth } from '../../context/AuthContext';
+import Footer from '../Common/Footer';
 
 const Register = () => {
   const { register: registerUser, USER_ROLES } = useAuth();
@@ -463,6 +464,7 @@ const Register = () => {
   };
 
   return (
+    <>
     <Container component="main" maxWidth="md">
       <Box
         sx={{
@@ -506,6 +508,8 @@ const Register = () => {
         </Paper>
       </Box>
     </Container>
+    <Footer />
+    </>
   );
 };
 

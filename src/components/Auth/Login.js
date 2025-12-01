@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../../config/firebase';
 import { toast } from 'react-toastify';
+import Footer from '../Common/Footer';
 
 const Login = () => {
   const { login } = useAuth();
@@ -71,6 +72,7 @@ const Login = () => {
   };
 
   return (
+    <>
     <Container component="main" maxWidth="xs">
       <Box
         sx={{
@@ -163,6 +165,8 @@ const Login = () => {
         </Paper>
       </Box>
     </Container>
+    <Footer />
+    </>
   );
 };
 
