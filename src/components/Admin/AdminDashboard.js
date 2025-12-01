@@ -53,6 +53,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { collection, getDocs, updateDoc, doc, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import Footer from '../Common/Footer';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -580,6 +581,7 @@ const AdminDashboard = () => {
   ];
 
   return (
+    <>
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
@@ -1605,6 +1607,8 @@ const AdminDashboard = () => {
         </DialogActions>
       </Dialog>
     </Box>
+    <Footer />
+    </>
   );
 };
 

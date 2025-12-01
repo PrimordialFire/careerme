@@ -50,6 +50,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import Footer from '../Common/Footer';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -359,6 +360,7 @@ const InstituteDashboard = () => {
   ];
 
   return (
+    <>
     <Box sx={{ flexGrow: 1 }}>
       <AppBar position="static">
         <Toolbar>
@@ -985,6 +987,8 @@ const InstituteDashboard = () => {
         </Alert>
       </Snackbar>
     </Box>
+    <Footer />
+    </>
   );
 };
 

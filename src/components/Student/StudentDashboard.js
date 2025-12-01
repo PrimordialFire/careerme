@@ -51,6 +51,7 @@ import { collection, addDoc, getDocs, updateDoc, doc } from 'firebase/firestore'
 import { db } from '../../config/firebase';
 import { matchJobsToStudent } from '../../utils/validation';
 import { waitingListService } from '../../services/firebaseService';
+import Footer from '../Common/Footer';
 
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
@@ -431,6 +432,7 @@ const StudentDashboard = () => {
   ];
 
   return (
+    <>
     <Box sx={{ flexGrow: 1 }}>
       {/* Top Navigation */}
       <AppBar position="static">
@@ -1061,6 +1063,8 @@ const StudentDashboard = () => {
         </Alert>
       </Snackbar>
     </Box>
+    <Footer />
+    </>
   );
 };
 
