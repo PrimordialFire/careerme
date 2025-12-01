@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Users can update their own profile (but not role or status)
+      allow update: if request.auth != null && request.auth.uid == userId && 
+                       request.resource.data.role == resource.data.role &&
+                       request.resource.data.status == resource.data.status;
+      // Only admins can update user status and role
+      allow update: if request.auth != null && isAdmin();
+      // Allow user creation during registration
+      allow create: if request.auth != null;
+    }
+    
+    // Faculties collection - institutions and admins can add, update, delete
+    match /faculties/{facultyId} {
+      allow read: if request.auth != null;
+      allow create: if (request.auth != null && request.resource.data.instituteId == request.auth.uid) || isAdmin();
+      allow update, delete: if (request.auth != null && resource.data.instituteId == request.auth.uid) || isAdmin();
+    }
+    
+    // Courses collection - institutions and admins can manage courses
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow create: if (request.auth != null && request.resource.data.instituteId == request.auth.uid) || isAdmin();
+      allow update, delete: if (request.auth != null && resource.data.instituteId == request.auth.uid) || isAdmin();
+    }
+    
+    // Applications collection - students can create, institutions can read
+    match /applications/{applicationId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+        (resource.data.studentId == request.auth.uid || 
+         resource.data.institutionId == request.auth.uid);
+    }
+    
+    // Jobs collection - companies can manage their jobs
+    match /jobs/{jobId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.companyId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.companyId == request.auth.uid;
+    }
+    
+    // Documents collection
+    match /documents/{documentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.studentId == request.auth.uid;
+    }
+    
+    // Reports collection - admins only
+    match /reports/{reportId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Institutions collection - read by all, write by admin
+    match /institutions/{institutionId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+  }
+}
