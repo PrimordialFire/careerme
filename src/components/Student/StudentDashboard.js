@@ -79,6 +79,7 @@ const StudentDashboard = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [institutions, setInstitutions] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -182,6 +183,7 @@ const StudentDashboard = () => {
     try {
       if (!selectedInstitution) {
         setSnackbarMessage('Please select an institution to confirm!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
@@ -220,11 +222,13 @@ const StudentDashboard = () => {
       }
       
       setSnackbarMessage(`Confirmed admission to ${selectedApp.institutionName}! Other admissions have been declined and waiting list students have been promoted.`);
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setInstitutionSelectionDialogOpen(false);
       loadMyApplications();
     } catch (error) {
       setSnackbarMessage('Error confirming institution. Please try again.');
+      setSnackbarSeverity('error');
       setSnackbarOpen(true);
       console.error('Error confirming institution:', error);
     }
@@ -235,18 +239,21 @@ const StudentDashboard = () => {
       // Enhanced validation of required fields
       if (!applicationForm.institutionName) {
         setSnackbarMessage('Please select an institution!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
       
       if (!applicationForm.course || applicationForm.course.trim() === '') {
         setSnackbarMessage('Please enter the course name!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
       
       if (!applicationForm.previousEducation || applicationForm.previousEducation.trim() === '') {
         setSnackbarMessage('Please specify your previous education!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
@@ -254,6 +261,7 @@ const StudentDashboard = () => {
       // Validate course name length
       if (applicationForm.course.length < 3) {
         setSnackbarMessage('Course name must be at least 3 characters long!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
@@ -272,6 +280,7 @@ const StudentDashboard = () => {
       // Enforce 2 applications per institution limit
       if (existingApplications.length >= 2) {
         setSnackbarMessage('Error: You can only apply to 2 courses per institution! You already have ' + existingApplications.length + ' active application(s) at this institution.');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
@@ -284,6 +293,7 @@ const StudentDashboard = () => {
       
       if (duplicateApplication) {
         setSnackbarMessage('Error: You have already applied for this course!');
+        setSnackbarSeverity('error');
         setSnackbarOpen(true);
         return;
       }
@@ -311,6 +321,7 @@ const StudentDashboard = () => {
           setSnackbarMessage(
             `Qualification Error: ${level} programs require one of the following: ${requiredEducation[level].join(', ')}. Your education: ${applicationForm.previousEducation}`
           );
+          setSnackbarSeverity('error');
           setSnackbarOpen(true);
           return;
         }
@@ -328,6 +339,7 @@ const StudentDashboard = () => {
       await addDoc(collection(db, 'applications'), applicationData);
       
       setSnackbarMessage('Application submitted successfully!');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setInstitutionDialogOpen(false);
       setApplicationForm({
@@ -341,6 +353,7 @@ const StudentDashboard = () => {
       loadMyApplications();
     } catch (error) {
       setSnackbarMessage('Error submitting application. Please try again.');
+      setSnackbarSeverity('error');
       setSnackbarOpen(true);
       console.error('Error submitting application:', error);
     }
@@ -359,6 +372,7 @@ const StudentDashboard = () => {
       await addDoc(collection(db, 'documents'), documentData);
       
       setSnackbarMessage('Document uploaded successfully!');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setDocumentDialogOpen(false);
       setDocumentForm({
@@ -390,6 +404,7 @@ const StudentDashboard = () => {
       await addDoc(collection(db, 'jobApplications'), jobApplicationData);
       
       setSnackbarMessage('Job application submitted successfully!');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setJobDialogOpen(false);
     } catch (error) {
@@ -409,6 +424,7 @@ const StudentDashboard = () => {
       });
       
       setSnackbarMessage('Profile updated successfully!');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setProfileDialogOpen(false);
     } catch (error) {
@@ -1084,7 +1100,7 @@ const StudentDashboard = () => {
         autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success">
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity}>
           {snackbarMessage}
         </Alert>
       </Snackbar>
