@@ -79,6 +79,7 @@ const StudentDashboard = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [institutions, setInstitutions] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [applicationForm, setApplicationForm] = useState({
@@ -443,7 +444,7 @@ const StudentDashboard = () => {
               Student Dashboard
             </Typography>
           </Box>
-          <IconButton color="inherit" sx={{ mr: 1 }}>
+          <IconButton color="inherit" sx={{ mr: 1 }} onClick={() => setNotificationDialogOpen(true)}>
             <Badge badgeContent={admittedApplications.length} color="error">
               <Notifications />
             </Badge>
@@ -1062,6 +1063,46 @@ const StudentDashboard = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Notification Dialog */}
+      <Dialog
+        open={notificationDialogOpen}
+        onClose={() => setNotificationDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <Notifications sx={{ mr: 1 }} />
+            Admission Notifications
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {admittedApplications.length > 0 ? (
+            <>
+              <Typography variant="h6" gutterBottom>
+                Congratulations! You have been admitted ({admittedApplications.length})
+              </Typography>
+              <List>
+                {admittedApplications.map((app) => (
+                  <ListItem key={app.id} sx={{ border: '1px solid #e0e0e0', borderRadius: 1, mb: 1 }}>
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="subtitle1"><strong>{app.courseName}</strong></Typography>
+                      <Typography variant="body2" color="text.secondary">{app.institutionName}</Typography>
+                      <Chip label="Admitted" color="success" size="small" sx={{ mt: 1 }} />
+                    </Box>
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          ) : (
+            <Typography color="text.secondary">No new notifications</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
     <Footer />
     </>

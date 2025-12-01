@@ -73,6 +73,7 @@ const CompanyDashboard = () => {
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [jobs, setJobs] = useState([]);
   const [qualifiedCandidates, setQualifiedCandidates] = useState([]);
   const [jobForm, setJobForm] = useState({
@@ -257,7 +258,7 @@ const CompanyDashboard = () => {
               Company Dashboard
             </Typography>
           </Box>
-          <IconButton color="inherit" sx={{ mr: 1 }}>
+          <IconButton color="inherit" sx={{ mr: 1 }} onClick={() => setNotificationDialogOpen(true)}>
             <Badge badgeContent={qualifiedCandidates.reduce((sum, job) => sum + (job.candidates?.length || 0), 0)} color="error">
               <Notifications />
             </Badge>
@@ -656,6 +657,53 @@ const CompanyDashboard = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Notification Dialog */}
+      <Dialog
+        open={notificationDialogOpen}
+        onClose={() => setNotificationDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <Notifications sx={{ mr: 1 }} />
+            Qualified Candidates
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>
+            Total Qualified Candidates ({qualifiedCandidates.reduce((sum, job) => sum + (job.candidates?.length || 0), 0)})
+          </Typography>
+          {qualifiedCandidates.length > 0 ? (
+            qualifiedCandidates.map((job) => (
+              <Box key={job.id} sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" fontWeight="bold">{job.title}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  {job.candidates?.length || 0} qualified candidates
+                </Typography>
+                {job.candidates && job.candidates.length > 0 && (
+                  <List>
+                    {job.candidates.slice(0, 3).map((candidate, idx) => (
+                      <ListItem key={idx} sx={{ border: '1px solid #e0e0e0', borderRadius: 1, mb: 1 }}>
+                        <Box>
+                          <Typography variant="body2"><strong>{candidate.name}</strong></Typography>
+                          <Chip label={`Match: ${candidate.matchPercentage}%`} size="small" color="success" />
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
+                )}
+              </Box>
+            ))
+          ) : (
+            <Typography color="text.secondary">No qualified candidates yet</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
     <Footer />
     </>

@@ -78,6 +78,7 @@ const InstituteDashboard = () => {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [faculties, setFaculties] = useState([]);
   const [courses, setCourses] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -370,7 +371,7 @@ const InstituteDashboard = () => {
               Institution Dashboard
             </Typography>
           </Box>
-          <IconButton color="inherit" sx={{ mr: 1 }}>
+          <IconButton color="inherit" sx={{ mr: 1 }} onClick={() => setNotificationDialogOpen(true)}>
             <Badge badgeContent={applications.filter(app => app.status === 'pending').length} color="error">
               <Notifications />
             </Badge>
@@ -986,6 +987,44 @@ const InstituteDashboard = () => {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Notification Dialog */}
+      <Dialog
+        open={notificationDialogOpen}
+        onClose={() => setNotificationDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center">
+            <Notifications sx={{ mr: 1 }} />
+            Pending Applications
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>
+            Pending Applications ({applications.filter(app => app.status === 'pending').length})
+          </Typography>
+          {applications.filter(app => app.status === 'pending').length > 0 ? (
+            <List>
+              {applications.filter(app => app.status === 'pending').map((app) => (
+                <ListItem key={app.id} sx={{ border: '1px solid #e0e0e0', borderRadius: 1, mb: 1 }}>
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="subtitle1"><strong>{app.studentName}</strong></Typography>
+                    <Typography variant="body2" color="text.secondary">{app.courseName}</Typography>
+                    <Chip label="Pending Review" color="warning" size="small" sx={{ mt: 1 }} />
+                  </Box>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Typography color="text.secondary">No pending applications</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
     <Footer />
     </>
